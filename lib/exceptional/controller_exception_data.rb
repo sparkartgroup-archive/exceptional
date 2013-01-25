@@ -13,10 +13,12 @@ module Exceptional
 
     def url
       if @request.respond_to?(:url) 
-        @request.url 
+        url = @request.url 
       else
-        "#{@request.protocol}#{@request.host}#{@request.request_uri}"
+        url = "#{@request.protocol}#{@request.host}#{@request.request_uri}"
       end
+
+      filter_url(url)
     end
 
     def action
@@ -59,12 +61,12 @@ module Exceptional
 
     private
 
-    def filter_hash(keys_to_filter, hash)
+    def filter_hash(keys_to_filter, hash, replacement_text)
       keys_to_filter.map! {|x| x.to_s}
       if keys_to_filter.is_a?(Array) && !keys_to_filter.empty?
         hash.each do |key, value|
           if key_match?(key, keys_to_filter)
-            hash[key] = "[FILTERED]"
+            hash[key] = replacement_text
           elsif value.respond_to?(:to_hash)
             filter_hash(keys_to_filter, hash[key])
           end
@@ -83,9 +85,25 @@ module Exceptional
       end
     end
 
-    def filter_parameters(hash)
+    def filter_url(url)
+      begin
+        uri = URI.parse(url)
+        if uri.query.present?
+          parameters = filter_parameters(Rack::Utils.parse_nested_query(uri.query), "FILTERED")
+          uri.query = Rack::Utils.build_query(parameters)
+          url = uri.to_s
+        end
+      rescue
+        # errors parsing the url or filtering parameters should be silenced
+        # we should just use the url if an error does occur (unlikely to ever happen)
+      end
+
+      url
+    end
+
+    def filter_parameters(hash, replacement_text = "[FILTERED]")
       if @request.respond_to?(:env) && @request.env["action_dispatch.parameter_filter"]
-        filter_hash(@request.env["action_dispatch.parameter_filter"], hash)
+        filter_hash(@request.env["action_dispatch.parameter_filter"], hash, replacement_text)
       elsif @controller.respond_to?(:filter_parameters)
         @controller.send(:filter_parameters, hash)
       else

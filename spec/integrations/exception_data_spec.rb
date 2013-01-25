@@ -54,13 +54,9 @@ describe Exceptional::ControllerExceptionData, 'when no request/controller/param
     end
   end
 
-  it "uses a whitelist for ENV variables aswell as existing filter" do
+  it "does not record any environmental variable" do
     env = @hash['application_environment']['env']
-    env['SOMETHING_SECRET'].should be_nil
-    env['DATABASE_URL'].should be_nil
-    env['HTTP_SOMETHING'].should be_nil
-    env['FILTERED_BY_OLD_FILTER_CONFIG'].should be_nil
-    env['SOMETHING_INTERESTING'].should == 'instagram'
+    env.should be_blank # We're nuking the env data sent to exceptional
   end
 
   it "generates parseable json" do
@@ -91,7 +87,7 @@ describe Exceptional::ControllerExceptionData, 'with request/controller/params' 
     @controller = Exceptional::SomeController.new
     @request = ActionDispatch::TestRequest.new
     @request.stub!(:parameters).and_return({'var1' => 'abc', 'action' => 'some_action', 'filter_me' => 'private'})
-    @request.stub!(:url).and_return('http://youtube.com/watch?v=oHg5SJYRHA0')
+    @request.stub!(:url).and_return('http://youtube.com/watch?v=oHg5SJYRHA0&filter_me=supersensitive')
     @request.stub!(:request_method).and_return(:get)
     @request.stub!(:remote_ip).and_return('1.2.3.4')
     @request.stub!(:env).and_return({'SOME_VAR' => 'abc', 'HTTP_CONTENT_TYPE' => 'text/html'})
@@ -103,7 +99,7 @@ describe Exceptional::ControllerExceptionData, 'with request/controller/params' 
 
   it "captures request" do
     request_hash = @hash['request']
-    request_hash['url'].should == 'http://youtube.com/watch?v=oHg5SJYRHA0'
+    request_hash['url'].should == 'http://youtube.com/watch?v=oHg5SJYRHA0&filter_me=FILTERED'
     request_hash['controller'].should == 'Exceptional::SomeController'
     request_hash['action'].should == 'some_action'
     request_hash['parameters'].should == {'var1' => 'abc', 'action' => 'some_action', 'filter_me' => '[FILTERED]'}

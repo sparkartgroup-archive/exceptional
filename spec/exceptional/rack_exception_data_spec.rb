@@ -69,9 +69,9 @@ describe Exceptional::RackExceptionData do
     client_hash['protocol_version'].should == Exceptional::PROTOCOL_VERSION
   end
   
-  it "should captire application environment" do
+  it "should capture application environment" do
     env_hash = @data.to_hash['application_environment']
-    env_hash['env'].should_not be_empty #execution dependent
+    env_hash['env'].should be_empty # We're wiping out all the env variables sent to Exceptional
     env_hash['libraries_loaded'].should_not be_empty #execution dependent
     env_hash['language'].should == 'ruby' #execution dependent
     
